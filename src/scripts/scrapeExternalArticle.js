@@ -1,61 +1,38 @@
 const axios = require("axios");
 const cheerio = require("cheerio");
 
+
 const scrapeExternalArticle = async (url) => {
-  const { data } = await axios.get(url, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-    },
-  });
+  try {
+    const { data } = await axios.get(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+      },
+      timeout: 10000, // 10 seconds timeout
+    });
 
-  const $ = cheerio.load(data);
+    const $ = cheerio.load(data);
+    let content = "";
+    $("p").each((_, el) => {
+      const text = $(el).text().trim();
+      if (text) content += text + "\n\n";
+    });
 
-  // Remove junk
-  $("script, style, nav, footer, header, aside").remove();
-
-  // Try common article containers
-  let content = "";
-
-  const selectors = [
-    "article",
-    ".post-content",
-    ".entry-content",
-    ".blog-content",
-    ".content",
-    "main",
-  ];
-
-  for (const selector of selectors) {
-    if ($(selector).length) {
-      $(selector)
-        .find("p")
-        .each((_, el) => {
-          const text = $(el).text().trim();
-          if (text.length > 40) {
-            content += text + "\n\n";
-          }
-        });
-      if (content.length > 500) break;
-    }
+    return content || "[No content extracted]";
+  } catch (err) {
+    console.warn(`Skipping URL (failed to scrape): ${url}`);
+    return `[Could not scrape content from ${url}]`;
   }
-
-  return {
-    url,
-    content: content.trim(),
-  };
 };
 
 module.exports = scrapeExternalArticle;
 
 // Test run
 if (require.main === module) {
-  scrapeExternalArticle(
-    "https://www.thinkowl.com/blog/beginners-guide-chatbots/"
-  )
-    .then(result => {
-      console.log("CONTENT LENGTH:", result.content.length);
-      console.log(result.content.slice(0, 500));
-    })
+  scrapeExternalArticle("https://medium.com/@suraj_bansal/build-your-own-ai-chatbot-a-beginners-guide-to-rag-and-langchain-0189a18ec401")
+    .then(console.log)
     .catch(console.error);
 }
